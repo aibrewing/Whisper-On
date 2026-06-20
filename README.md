@@ -6,7 +6,8 @@
 Built on [Groq's](https://groq.com) ultra-fast Whisper API, Whisper On gives you accurate, near-instant voice-to-text that types directly into whatever application you're using — a browser, Word, your IDE, a chat window, anything.
 
 ---
-If you want to watch the demo on API key creation and how-to use the app, you can find it below:\
+If you want to watch the demo on API key creation and how-to use the app, you can find it below:
+
 <a href="https://www.youtube.com/watch?v=oB7g59blfwM">
   <img src="https://img.youtube.com/vi/oB7g59blfwM/hqdefault.jpg" width="140" alt="Watch the demo">
 </a>
