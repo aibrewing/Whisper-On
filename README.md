@@ -1,9 +1,13 @@
 # ⬡ Whisper On
 
-> **Dictate into any app on Windows — instantly, for free.**
+> **Dictate into any app on Windows — instantly, for free.**\
 > Hold `Alt+Q` anywhere on your PC. Speak. Release. Your words appear.
 
 Built on [Groq's](https://groq.com) ultra-fast Whisper API, Whisper On gives you accurate, near-instant voice-to-text that types directly into whatever application you're using — a browser, Word, your IDE, a chat window, anything.
+
+---
+
+[![Watch the demo](https://img.youtube.com/vi/VIDEO_ID/hqdefault.jpg)](https://www.youtube.com/watch?v=oB7g59blfwM)
 
 ---
 
@@ -25,13 +29,12 @@ So the trade-off looks like this: Whisper On gives you the speed and creative fr
 - **Types directly into any app** — no copy-paste, no switching windows
 - **Two recording modes** — hold `Alt+Q` to record (push-to-talk), or press once to start and again to stop
 - **Near-instant transcription** — Groq's inference is fast enough to feel real-time
-- **Smart formatting** — rule-based: converts symbols, units, currency, fractions (always on)
+- **Smart formatting** — rule-based: converts symbols, units, currency, fractions, numbered lists (always on)
 - **Language support** — 99+ languages transcribed; smart formatting available for English and Italian
 - **Auto language detection** — Whisper detects language; formatting rules apply for English and Italian
 - **Custom vocabulary** — teach it your names, acronyms and jargon (e.g. AIbrewing, AIOS); biases Whisper's spelling on every recording. Edit anytime via the UI — no rewriting, pure spelling bias
 - **Deep clean** *(optional, off by default)* — sends transcript to Groq's Llama 3.3 for punctuation polish and list formatting; uses your existing Groq key. Output is guarded by a word-coverage check so it can never paste back an AI reply instead of your words
 - **Hallucination filter** — strips common Whisper closing-phrase artefacts ("Thank you", "Grazie", etc.)
-- **Silence-aware** — trigger the hotkey without speaking and nothing is typed. A local audio-energy check plus Whisper's no-speech confidence stop the classic silence hallucinations (stray URLs, "thanks for watching") before they reach your screen.
 - **Clean web UI** — view history, switch models, manage your API key
 - **Persistent history** — every transcript saved locally across sessions
 - **Runs silently in the system tray** — launch once, forget about it
@@ -40,7 +43,7 @@ So the trade-off looks like this: Whisper On gives you the speed and creative fr
 
 ---
 
-## 🆚 Whisper On vs Wispr Flow
+## 🆚 Whisper-On vs Wispr-Flow
 
 | Feature | Whisper On | Wispr Flow |
 |---|---|---|
@@ -49,10 +52,9 @@ So the trade-off looks like this: Whisper On gives you the speed and creative fr
 | **Transcription model** | ✅ OpenAI Whisper (open source) | ❌ Proprietary model |
 | **Open source** | ✅ Fully open source (MIT) | ❌ Closed source |
 | **Privacy** | ✅ Audio sent only to Groq | ⚠️ Proprietary cloud backend |
-| **Streaming (words as you speak)** | ❌ Transcript appears after recording stops | ✅ Words appear in real time |
 | **Smart text cleanup** | ✅ Rule-based: lists, symbols, units, currency (EN + IT) | ✅ Built-in, automatic |
 | **Filler word removal** | ❌ Not available | ✅ Automatic |
-| **List formatting** | ✅ Numbered lists (rule-based, zero hallucination risk) | ✅ Automatic |
+| **List formatting** | ✅ Numbered lists (rule-based) - Bullet Lists (LLM-based, not always rendered) | ✅ Automatic |
 | **Custom vocabulary** | ✅ Editable term list (biases spelling) | ✅ Personal dictionary |
 | **Platform** | ⚠️ Windows only (currently) | ✅ Mac + Windows |
 
