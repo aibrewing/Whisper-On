@@ -7,7 +7,7 @@ Built on [Groq's](https://groq.com) ultra-fast Whisper API, Whisper On gives you
 
 ---
 
-[![Watch the demo](https://img.youtube.com/vi/VIDEO_ID/hqdefault.jpg)](https://www.youtube.com/watch?v=oB7g59blfwM)
+[![Watch the demo](https://img.youtube.com/vi/oB7g59blfwM/hqdefault.jpg)](https://www.youtube.com/watch?v=oB7g59blfwM)
 
 ---
 
