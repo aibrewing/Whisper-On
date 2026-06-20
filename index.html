@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whisper On</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg:           #0a0a0c;
+  --card:         #16161a;          /* solid elevated surface — gives cards real body */
+  --card-line:    rgba(255,255,255,0.09); /* slightly more visible border */
+  --chip:         #1c1c22;          /* input/chip backgrounds — one step above card */
+  --title:        rgba(232,228,220,0.94);
+  --label:        oklch(0.74 0.150 295);
+  --subtext:      oklch(0.65 0.045 295); /* up from 0.50 → much more legible */
+  --accent:       #8b7cff;
+  --accent-soft:  rgba(139,124,255,0.15);
+  --accent-line:  rgba(139,124,255,0.40);
+  --red:          oklch(0.65 0.20 25);
+  --red-soft:     rgba(220,60,60,0.15);
+  --green:        oklch(0.78 0.16 150);
+  --green-soft:   rgba(60,200,120,0.12);
+}
+
+html, body { height: 100%; }
+body {
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--title);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Background dot grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 12px 12px;
+  pointer-events: none;
+}
+
+#root {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 12px 64px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+  border-radius: 6px;
+  padding: 2px 4px; margin: -2px -4px;
+  transition: background 150ms ease, transform 120ms ease;
+}
+.brand:hover { background: rgba(255,255,255,0.03); }
+.brand:active { transform: translateY(0.5px); }
+.brand-logo { flex-shrink: 0; }
+.brand-mark {
+  font-weight: 700; font-size: 15px; letter-spacing: 0.005em;
+  background-image: linear-gradient(90deg, #5fb3a8, #8b7cff);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-status { display: flex; align-items: center; gap: 6px; }
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px oklch(0.78 0.16 150 / 0.6);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.dot.recording { background: var(--red); box-shadow: 0 0 8px oklch(0.65 0.20 25 / 0.7); animation: blink-dot 1s infinite; }
+.dot.transcribing { background: var(--accent); box-shadow: 0 0 8px rgba(139,124,255,0.6); animation: blink-dot 0.6s infinite; }
+.dot.error { background: var(--red); box-shadow: none; animation: none; }
+@keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.dot-label { font-size: 11.5px; color: var(--subtext); }
+.chip {
+  font-size: 11px; color: var(--accent);
+  background: var(--accent-soft);
+  border: 0.5px solid var(--accent-line);
+  padding: 3px 8px; border-radius: 5px;
+  letter-spacing: 0.01em;
+}
+
+/* Status bar */
+.status-bar {
+  font-size: 12px; color: var(--subtext);
+  background: var(--card);
+  border: 0.5px solid var(--card-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  letter-spacing: 0.005em;
+  transition: color 0.2s, border-color 0.2s;
+}
+.status-bar.recording  { color: var(--red);    border-color: rgba(220,60,60,0.3); }
+.status-bar.transcribing { color: var(--accent); border-color: var(--accent-line); }
+.status-bar.ok         { color: var(--green);  border-color: rgba(60,200,120,0.3); }
+.status-bar.error      { color: var(--red);    border-color: rgba(220,60,60,0.3); }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border: 0.5px solid var(--card-line);
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  transition: border-color 200ms ease;
+}
+.card:hover { border-color: var(--accent-line); }
+.card-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.10em;
+  color: var(--label);
+  margin-bottom: 12px;
+}
+.card-body { display: flex; flex-direction: column; gap: 10px; }
+
+/* Inputs */
+.input-row { display: flex; gap: 8px; }
+.input {
+  flex: 1; min-width: 0;
+  font-family: var(--mono); font-size: 12.5px;
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--title);
+  outline: none;
+  transition: border-color 150ms, background 150ms;
+}
+.input::placeholder { color: var(--subtext); opacity: 0.85; }
+.input:focus { border-color: var(--accent-line); background: var(--accent-soft); }
+
+/* Buttons */
+.btn-primary {
+  font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+  color: #fff; background: var(--accent);
+  border: 0.5px solid transparent;
+  border-radius: 7px; padding: 8px 14px;
+  cursor: pointer; white-space: nowrap;
+  transition: filter 120ms, transform 120ms;
+}
+.btn-primary:hover { filter: brightness(1.10); }
+.btn-primary:active { transform: translateY(0.5px); }
+.btn-saved { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+.btn-ghost {
+  font-family: var(--mono); font-size: 12.5px;
+  color: var(--subtext); background: transparent;
+  border: 0.5px solid var(--card-line);
+  border-radius: 7px; padding: 8px 14px;
+  cursor: pointer; white-space: nowrap;
+  transition: color 120ms, border-color 120ms;
+}
+.btn-ghost:hover { color: var(--title); border-color: var(--accent-line); }
+.btn-ghost:active { transform: translateY(0.5px); }
+.btn-danger { color: var(--red); }
+.btn-danger:hover { border-color: rgba(220,60,60,0.4); color: var(--red); }
+
+/* Sub text */
+.sub {
+  font-size: 11.5px; line-height: 1.55;
+  color: var(--subtext); margin: 0;
+}
+.sub a { color: var(--accent); text-decoration: none; }
+.sub a:hover { text-decoration: underline; text-decoration-thickness: 0.5px; text-underline-offset: 2px; }
+.mono-inline {
+  color: var(--title); opacity: 0.9;
+  background: var(--chip);
+  padding: 1px 5px; border-radius: 4px; font-size: 10.5px;
+}
+.ok-msg { font-size: 12px; color: var(--green); margin-top: 6px; }
+.err-msg { font-size: 12px; color: var(--red); margin-top: 6px; }
+
+/* Select */
+.select-wrap { position: relative; }
+.select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%;
+  font-family: var(--mono); font-size: 12.5px;
+  color: var(--title);
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  border-radius: 7px;
+  padding: 9px 30px 9px 12px;
+  outline: none; cursor: pointer;
+  transition: border-color 150ms;
+}
+.select:focus { border-color: var(--accent-line); }
+.select-caret {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Input mode segmented */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode-opt {
+  text-align: left;
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  border-radius: 9px;
+  padding: 12px 13px;
+  cursor: pointer;
+  font-family: var(--mono);
+  transition: border-color 150ms, box-shadow 150ms, background 150ms;
+}
+.mode-opt:hover { background: var(--card); }
+.mode-opt.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 24px rgba(139,124,255,0.13);
+}
+.mode-title {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--title);
+  margin-bottom: 6px; letter-spacing: 0.005em;
+  transition: color 150ms;
+}
+.mode-opt.active .mode-title { color: var(--accent); }
+.mode-body { font-size: 11.5px; line-height: 1.5; color: var(--subtext); }
+.kbd {
+  display: inline-block;
+  font-family: var(--mono); font-size: 10.5px;
+  color: var(--title);
+  background: rgba(255,255,255,0.08);
+  border: 0.5px solid var(--card-line);
+  border-bottom-width: 1.5px;
+  padding: 1px 5px; border-radius: 4px;
+  margin: 0 1px; line-height: 1.4;
+}
+
+/* Record button */
+.rec-area {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 14px;
+  padding: 18px 0 6px;
+}
+.rec-btn {
+  position: relative;
+  width: 76px; height: 76px; border-radius: 50%;
+  background: rgba(255,255,255,0.045);
+  border: 0.5px solid rgba(255,255,255,0.10);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 150ms, border-color 150ms, transform 100ms;
+}
+.rec-btn:hover { background: rgba(255,255,255,0.07); border-color: var(--accent-line); }
+.rec-btn:active { transform: scale(0.97); }
+.rec-btn::before {
+  content: '';
+  position: absolute; inset: -10px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  opacity: 0;
+  animation: halo 2.6s ease-out infinite;
+}
+.rec-btn.recording {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+}
+.rec-btn.recording::before { animation: halo 1.2s ease-out infinite; }
+@keyframes halo {
+  0%   { transform: scale(0.92); opacity: 0.55; }
+  70%  { transform: scale(1.20); opacity: 0; }
+  100% { transform: scale(1.20); opacity: 0; }
+}
+.rec-inner {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--subtext);
+  transition: background 150ms;
+}
+.rec-btn:hover .rec-inner { background: var(--accent); }
+.rec-square { width: 18px; height: 18px; background: var(--accent); border-radius: 3px; }
+
+/* Timer */
+.timer {
+  font-size: 30px; font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--title);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  transition: color 0.2s;
+}
+.timer.recording { color: var(--accent); }
+.timer span { display: inline-block; min-width: 0.6em; text-align: center; }
+.timer-colon { opacity: 0.45; animation: blink-colon 1s ease-in-out infinite; }
+@keyframes blink-colon { 0%,100%{opacity:0.45} 50%{opacity:0.9} }
+
+/* Transcript box */
+.transcript-box {
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  border-radius: 7px;
+  padding: 12px;
+  font-size: 13px; line-height: 1.7;
+  color: var(--title);
+  min-height: 80px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.action-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* History */
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  border-radius: 9px;
+  padding: 12px 13px;
+  cursor: pointer;
+  transition: border-color 150ms, background 150ms;
+}
+.history-item:hover { background: var(--card); border-color: var(--accent-line); }
+.history-meta { flex-shrink: 0; min-width: 56px; }
+.history-date { font-size: 10.5px; color: var(--subtext); line-height: 1.5; }
+.history-dur  { font-size: 10px;   color: var(--subtext); opacity: 0.7; }
+.history-text {
+  font-size: 12.5px; color: var(--subtext); line-height: 1.55;
+  flex: 1; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.history-del {
+  background: none; border: none;
+  color: var(--subtext); font-size: 14px;
+  padding: 0 2px; flex-shrink: 0; cursor: pointer;
+  transition: color 120ms;
+}
+.history-del:hover { color: var(--red); }
+.empty-state {
+  font-size: 12px; color: var(--subtext);
+  text-align: center; padding: 1.5rem 0; opacity: 0.6;
+}
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 2rem; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--chip);
+  border: 0.5px solid var(--card-line);
+  color: var(--title); font-family: var(--mono); font-size: 12px;
+  padding: 8px 18px; border-radius: 20px;
+  opacity: 0; transition: all 0.2s;
+  pointer-events: none; z-index: 100;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.55);
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal-card {
+  width: 100%; max-width: 460px;
+  background: var(--card);
+  border: 0.5px solid var(--card-line);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+</style>
+</head>
+<body>
+<div id="root">
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <a href="https://github.com/aibrewing/whisper-on" target="_blank" rel="noopener" class="brand">
+      <svg class="brand-logo" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="rgba(232,228,220,0.94)" stroke-width="1.4"/>
+        <circle cx="10" cy="10" r="2.2" fill="rgba(232,228,220,0.94)" opacity="0.85"/>
+      </svg>
+      <span class="brand-mark">Whisper On</span>
+    </a>
+    <div class="header-right">
+      <div class="header-status">
+        <div class="dot" id="liveDot"></div>
+        <span class="dot-label" id="liveLabel">idle</span>
+      </div>
+      <span class="chip">Groq · local</span>
+    </div>
+  </div>
+
+  <!-- Custom vocabulary button -->
+  <div style="display:flex; justify-content:flex-end;">
+    <button class="btn-primary" onclick="openVocab()">Custom Vocabulary</button>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="statusBar">
+    <span id="statusText">Connecting to transcriber service…</span>
+  </div>
+
+  <!-- API Key -->
+  <div class="card">
+    <div class="card-label">API KEY</div>
+    <div class="card-body">
+      <div class="input-row">
+        <input type="password" class="input" id="apiKey" placeholder="gsk_…  (paste full key to update)" />
+        <button class="btn-primary" id="saveBtn" onclick="saveKey()">Save</button>
+        <button class="btn-ghost" onclick="clearKey()">Clear</button>
+      </div>
+      <div id="keyFeedback"></div>
+      <p class="sub" id="keyHelp">
+        Get a free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>.
+        Stored in <span class="mono-inline">config.json</span> next to <span class="mono-inline">transcriber.py</span> on your PC.
+      </p>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:0.5px solid var(--card-line);">
+        <div>
+          <div style="font-size:13px; font-weight:600; color:var(--title);">Deep clean</div>
+          <div class="sub" style="margin-top:2px;" id="deepCleanDesc">Punctuation + list formatting via Groq</div>
+        </div>
+        <button type="button" id="deepCleanToggle" onclick="toggleDeepClean()"
+          style="flex-shrink:0; width:42px; height:24px; border-radius:12px; border:none;
+                 background:var(--card-line); position:relative; cursor:pointer; transition:background 0.2s;">
+          <span id="deepCleanThumb"
+            style="position:absolute; top:3px; left:3px; width:18px; height:18px;
+                   border-radius:50%; background:white; transition:left 0.2s; display:block;"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model -->
+  <div class="card">
+    <div class="card-label">MODEL</div>
+    <div class="card-body">
+      <div class="select-wrap">
+        <select class="select" id="model" onchange="saveSettings()">
+          <option value="whisper-large-v3-turbo">large-v3-turbo (recommended)</option>
+          <option value="whisper-large-v3">large-v3 (max accuracy)</option>
+          <option value="distil-whisper-large-v3-en">distil-v3-en (EN only, fastest)</option>
+        </select>
+        <svg class="select-caret" width="10" height="6" viewBox="0 0 10 6"><path d="M0 0h10L5 6z" fill="var(--subtext)"/></svg>
+      </div>
+      <p class="sub">Language detected automatically. Changes take effect on the next recording.</p>
+    </div>
+  </div>
+
+  <!-- Input mode -->
+  <div class="card">
+    <div class="card-label">INPUT MODE</div>
+    <div class="card-body">
+      <div class="mode-grid">
+        <button type="button" class="mode-opt" id="seg-toggle" onclick="selectSeg('toggle')">
+          <div class="mode-title">Press to start / stop</div>
+          <div class="mode-body">Press <kbd class="kbd">Alt+Q</kbd> once to start, again to stop</div>
+        </button>
+        <button type="button" class="mode-opt" id="seg-hold" onclick="selectSeg('hold')">
+          <div class="mode-title">Press &amp; hold</div>
+          <div class="mode-body">Hold <kbd class="kbd">Alt+Q</kbd> to record, release to stop</div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual record -->
+  <div class="card">
+    <div class="card-label">MANUAL RECORD</div>
+    <div class="card-body">
+      <div class="rec-area">
+        <button type="button" class="rec-btn" id="recBtn" onclick="toggleRecording()" aria-label="Start recording">
+          <span class="rec-inner" id="recInner"></span>
+        </button>
+        <div class="timer" id="timer">
+          <span>0</span><span class="timer-colon">:</span><span>0</span><span>0</span>
+        </div>
+        <div style="text-align:center;">
+          <p class="sub" style="margin:0;">Click above, or press <kbd class="kbd">Alt</kbd>+<kbd class="kbd">Q</kbd> anywhere</p>
+          <p class="sub" style="margin:4px 0 0;">hold to record, release to stop — typed into your last focused app</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Latest transcript -->
+  <div class="card" id="resultCard" style="display:none;">
+    <div class="card-label">LATEST TRANSCRIPT</div>
+    <div class="card-body">
+      <div class="transcript-box" id="resultText"></div>
+      <div class="action-row">
+        <button class="btn-ghost" onclick="copyLatest()">Copy</button>
+        <button class="btn-ghost" onclick="saveLatest()">Save .txt</button>
+        <button class="btn-ghost" onclick="document.getElementById('resultCard').style.display='none'">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <div class="card-label">HISTORY</div>
+    <div class="card-body">
+      <div class="action-row" style="margin-top:0;">
+        <button class="btn-ghost" onclick="exportHistory()">Export .txt</button>
+        <button class="btn-ghost btn-danger" onclick="clearHistory()">Clear all</button>
+      </div>
+      <div id="historyList"><div class="empty-state">No transcripts yet</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- Custom vocabulary modal -->
+<div id="vocabModal" class="modal-overlay" onclick="if(event.target===this)closeVocab()">
+  <div class="modal-card">
+    <div class="card-label">CUSTOM VOCABULARY</div>
+    <textarea class="input" id="vocabInput" rows="4"
+      placeholder="Comma-separated terms Whisper should spell your way — e.g. AIbrewing, AIOS, Groq, Eleonora"
+      style="resize:vertical; width:100%; line-height:1.6;"></textarea>
+    <p class="sub" style="margin:10px 0 0;">Names, acronyms and jargon. Biases transcription toward these spellings — applied on every recording. Keep it to terms, not sentences.</p>
+    <div class="action-row" style="margin-top:14px;">
+      <button class="btn-primary" onclick="saveVocab()">Save</button>
+      <button class="btn-ghost" onclick="closeVocab()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = window.location.origin + '/api';
+let history = [];
+let isRecording = false;
+let timerInterval = null;
+let seconds = 0;
+let prevStatus = null;
+let _currentMode = 'hold';
+
+// ── Init ────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  await loadConfig();
+  await loadHistory();
+  pollState();
+});
+
+async function loadConfig() {
+  try {
+    const cfg = await apiFetch('/config');
+    document.getElementById('model').value = cfg.model || 'whisper-large-v3-turbo';
+    const mode = cfg.recording_mode || 'hold';
+    selectSeg(mode, false);
+    if (cfg.api_key_set) {
+      _keySet = true;
+      document.getElementById('apiKey').placeholder = cfg.api_key + '  (key is set — paste new to change)';
+      document.getElementById('keyFeedback').innerHTML = '<div class="ok-msg">✓ API key configured</div>';
+      setKeyHelp('hidden');
+    } else {
+      setKeyHelp('get');
+    }
+    setDeepClean(cfg.deep_clean === true);
+    _vocab = cfg.custom_vocab || '';
+    setStatusBar('idle', 'Ready — use the hotkey to dictate into any app');
+  } catch(e) {
+    setStatusBar('error', 'Cannot reach transcriber.py — is it running?');
+  }
+}
+
+async function loadHistory() {
+  try {
+    history = await apiFetch('/history');
+    renderHistory();
+  } catch(_) {}
+}
+
+// ── Polling ─────────────────────────────────────────────────────────────
+function pollState() {
+  setInterval(async () => {
+    try {
+      const s = await apiFetch('/state');
+      applyState(s);
+    } catch(_) {
+      setStatusBar('error', 'Transcriber service not reachable');
+      setDot('');
+    }
+  }, 1500);
+}
+
+function applyState(s) {
+  updateKeyState(!!s.key_invalid);
+  const status = s.status;
+  setDot(status);
+  if (status === 'recording' && !isRecording) {
+    isRecording = true; startTimer();
+    document.getElementById('recBtn').classList.add('recording');
+    document.getElementById('recInner').outerHTML = '<span class="rec-square" id="recInner"></span>';
+    document.getElementById('timer').classList.add('recording');
+    setStatusBar('recording', 'Recording…');
+  } else if (status !== 'recording' && isRecording) {
+    isRecording = false; stopTimer();
+    const btn = document.getElementById('recBtn');
+    btn.classList.remove('recording');
+    btn.querySelector('span').outerHTML = '<span class="rec-inner" id="recInner"></span>';
+    document.getElementById('timer').classList.remove('recording');
+  }
+  if (status === 'transcribing') {
+    setStatusBar('transcribing', _deepClean ? 'Transcribing + deep clean…' : 'Transcribing…');
+  } else if (status === 'error') {
+    setStatusBar('error', '⚠ ' + (s.last_error || 'Unknown error'));
+  } else if (status === 'idle' && prevStatus === 'transcribing') {
+    loadHistory().then(() => {
+      const latest = history[0];
+      if (latest) {
+        document.getElementById('resultText').textContent = latest.text;
+        document.getElementById('resultCard').style.display = 'block';
+      }
+    });
+    setStatusBar('ok', 'Done — transcript pasted into your app');
+    setTimeout(() => setStatusBar('idle', 'Ready — use the hotkey to dictate into any app'), 3000);
+  } else if (status === 'idle' && prevStatus !== 'idle' && prevStatus !== null) {
+    setStatusBar('idle', 'Ready — use the hotkey to dictate into any app');
+  }
+  prevStatus = status;
+}
+
+function setDot(status) {
+  const dot = document.getElementById('liveDot');
+  const label = document.getElementById('liveLabel');
+  dot.className = 'dot ' + (status || '');
+  label.textContent = status || '—';
+}
+
+function setStatusBar(type, msg) {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('statusText').textContent = msg;
+}
+
+// ── API key ──────────────────────────────────────────────────────────────
+let _keySet = false;
+let _keyInvalid = false;
+
+function setKeyHelp(mode) {
+  const el = document.getElementById('keyHelp');
+  if (!el) return;
+  if (mode === 'hidden') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if (mode === 'fail') {
+    el.innerHTML = 'Key not working — get a new one at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>.';
+  } else {
+    el.innerHTML = 'Get a free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>. Stored in <span class="mono-inline">config.json</span> next to <span class="mono-inline">transcriber.py</span> on your PC.';
+  }
+}
+
+// Re-show the helper subtext (and flip green → red) only when the key itself
+// fails (HTTP 401/403), never on a plain network error.
+function updateKeyState(invalid) {
+  if (invalid && !_keyInvalid) {
+    _keyInvalid = true;
+    setKeyHelp('fail');
+    document.getElementById('keyFeedback').innerHTML = '<div class="err-msg">✗ API key not working — check or replace it</div>';
+  } else if (!invalid && _keyInvalid) {
+    _keyInvalid = false;
+    if (_keySet) {
+      setKeyHelp('hidden');
+      document.getElementById('keyFeedback').innerHTML = '<div class="ok-msg">✓ API key configured</div>';
+    } else {
+      setKeyHelp('get');
+    }
+  }
+}
+
+async function saveKey() {
+  const val = document.getElementById('apiKey').value.trim();
+  if (!val || val.includes('…')) { toast('Paste your full API key first'); return; }
+  if (!val.startsWith('gsk_') && !val.startsWith('groq_')) {
+    document.getElementById('keyFeedback').innerHTML = '<div class="err-msg">✗ Key should start with gsk_</div>';
+    return;
+  }
+  await apiFetch('/config', 'POST', { api_key: val });
+  _keySet = true; _keyInvalid = false; setKeyHelp('hidden');
+  document.getElementById('keyFeedback').innerHTML = '<div class="ok-msg">✓ Key saved to config.json</div>';
+  const btn = document.getElementById('saveBtn');
+  btn.textContent = 'Saved';
+  btn.classList.add('btn-saved');
+  setTimeout(() => { btn.textContent = 'Save'; btn.classList.remove('btn-saved'); }, 2000);
+  document.getElementById('apiKey').value = '';
+  document.getElementById('apiKey').placeholder = 'Key is set — paste new to change';
+}
+
+async function clearKey() {
+  await apiFetch('/clear-key', 'POST');
+  _keySet = false; _keyInvalid = false; setKeyHelp('get');
+  document.getElementById('apiKey').placeholder = 'gsk_…';
+  document.getElementById('keyFeedback').innerHTML = '<div class="err-msg">Key cleared</div>';
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────
+let _deepClean = true;
+
+function setDeepClean(val) {
+  _deepClean = val;
+  const btn   = document.getElementById('deepCleanToggle');
+  const thumb = document.getElementById('deepCleanThumb');
+  const desc  = document.getElementById('deepCleanDesc');
+  if (val) {
+    btn.style.background = 'var(--accent)';
+    thumb.style.left = '21px';
+    desc.textContent = 'Active — punctuation + list formatting';
+  } else {
+    btn.style.background = 'var(--card-line)';
+    thumb.style.left = '3px';
+    desc.textContent = 'Punctuation + list formatting via Groq';
+  }
+}
+
+async function toggleDeepClean() {
+  setDeepClean(!_deepClean);
+  await apiFetch('/config', 'POST', { deep_clean: _deepClean });
+  toast(_deepClean ? 'Deep clean enabled' : 'Deep clean disabled');
+}
+
+async function saveSettings() {
+  const model = document.getElementById('model').value;
+  const recording_mode = _currentMode;
+  await apiFetch('/config', 'POST', { model, recording_mode, smart_format: true });
+  toast('Settings saved');
+}
+
+function selectSeg(mode, save = true) {
+  _currentMode = mode;
+  document.querySelectorAll('.mode-opt').forEach(o => o.classList.remove('active'));
+  const el = document.getElementById('seg-' + mode);
+  if (el) el.classList.add('active');
+  if (save) saveSettings();
+}
+
+// ── Custom vocabulary (modal) ──────────────────────────────────────────────
+let _vocab = '';
+
+function openVocab() {
+  document.getElementById('vocabInput').value = _vocab;
+  document.getElementById('vocabModal').classList.add('show');
+  document.getElementById('vocabInput').focus();
+}
+
+function closeVocab() {
+  document.getElementById('vocabModal').classList.remove('show');
+}
+
+async function saveVocab() {
+  const val = document.getElementById('vocabInput').value.trim();
+  await apiFetch('/config', 'POST', { custom_vocab: val });
+  _vocab = val;
+  closeVocab();
+  toast('Vocabulary saved');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVocab(); });
+
+// ── Recording ─────────────────────────────────────────────────────────────
+async function toggleRecording() {
+  if (isRecording) {
+    await apiFetch('/record/stop', 'POST');
+  } else {
+    await apiFetch('/record/start', 'POST');
+  }
+}
+
+function startTimer() {
+  seconds = 0; updateTimerDisplay();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => { seconds++; updateTimerDisplay(); }, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const s1 = Math.floor(s / 10);
+  const s2 = s % 10;
+  const el = document.getElementById('timer');
+  el.innerHTML = `<span>${m}</span><span class="timer-colon">:</span><span>${s1}</span><span>${s2}</span>`;
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (!history.length) {
+    el.innerHTML = '<div class="empty-state">No transcripts yet</div>';
+    return;
+  }
+  el.innerHTML = '<div class="history-list">' + history.map((item, i) => `
+    <div class="history-item" onclick="expandItem(${i})">
+      <div class="history-meta">
+        <div class="history-date">${item.date}</div>
+        <div class="history-date">${item.time}</div>
+        <div class="history-dur">${formatDur(item.duration)}</div>
+      </div>
+      <div class="history-text">${escHtml(item.text)}</div>
+      <button class="history-del" onclick="event.stopPropagation(); deleteItem(${item.id})" title="Remove">✕</button>
+    </div>
+  `).join('') + '</div>';
+}
+
+function expandItem(i) {
+  document.getElementById('resultText').textContent = history[i].text;
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function deleteItem(id) {
+  await apiFetch('/history/' + id, 'DELETE');
+  history = history.filter(e => e.id !== id);
+  renderHistory();
+}
+
+async function clearHistory() {
+  if (!history.length) return;
+  if (!confirm('Clear all ' + history.length + ' transcript(s)?')) return;
+  await apiFetch('/history', 'DELETE');
+  history = [];
+  renderHistory();
+}
+
+function exportHistory() {
+  if (!history.length) { toast('No history to export'); return; }
+  const lines = [...history].reverse().map(e =>
+    `[${e.date} ${e.time}] (${formatDur(e.duration)}) [${e.model}]\n${e.text}`
+  ).join('\n\n---\n\n');
+  downloadTxt('transcripts-' + datestamp() + '.txt',
+    '=== Whisper On export — ' + new Date().toLocaleString() + ' ===\n\n' + lines);
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function copyLatest() {
+  navigator.clipboard.writeText(document.getElementById('resultText').textContent)
+    .then(() => toast('Copied!'));
+}
+
+function saveLatest() {
+  const text = document.getElementById('resultText').textContent;
+  if (text) downloadTxt('transcript-' + datestamp() + '.txt', text);
+}
+
+function downloadTxt(name, content) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+function formatDur(s) {
+  if (!s) return '';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return m > 0 ? m + 'm ' + sec + 's' : sec + 's';
+}
+
+function datestamp() { return new Date().toISOString().slice(0, 10); }
+function escHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
